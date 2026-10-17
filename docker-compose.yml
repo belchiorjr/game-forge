@@ -1,0 +1,38 @@
+# Game Forge local stack. The sprite service (apps/sprites) runs natively on the Mac:
+# Docker on macOS cannot reach the GPU (Metal/MPS).
+name: game-forge
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      FORGE_LLM: ${FORGE_LLM:-fake}
+      FORGE_MODEL: ${FORGE_MODEL:-claude-opus-5-5}
+      FORGE_REFUSAL_FALLBACK: ${FORGE_REFUSAL_FALLBACK:-true}
+      FORGE_API_TOKEN: ${FORGE_API_TOKEN:-change-me}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - forge-data:/data
+      - forge-workspaces:/workspaces
+    ports:
+      - "127.0.0.1:${FORGE_API_PORT:-8080}:8080" # local only: the API runs agent-written code
+    restart: unless-stopped
+
+  web:
+    build:
+      context: apps/web
+    environment:
+      FORGE_API_URL: http://api:8080
+      FORGE_API_TOKEN: ${FORGE_API_TOKEN:-change-me}
+    ports:
+      - "127.0.0.1:${FORGE_WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  forge-data:
+  forge-workspaces:

@@ -20,11 +20,25 @@ apps/sprites            (serviço Python de sprites, nativo no Mac — ainda nã
 Requisitos: Go 1.25+, Node 20+, git.
 
 ```bash
-cd apps/web && npm install && cp .env.example .env.local && cd ../..
-make dev          # API em :8080 (agente fake) + web em :3000
+make install && make dev   # API em :8080 (agente fake) + web em :3000
 ```
 
 Abra http://localhost:3000, descreva um jogo e acompanhe o agente na timeline.
+
+Todos os comandos: `make help`.
+
+### Docker
+
+```bash
+make docker-up    # cria .env a partir de .env.example e sobe api + web
+make docker-logs
+make docker-down
+```
+
+Portas do host via `FORGE_WEB_PORT` / `FORGE_API_PORT` no `.env` (padrão 3000/8080, só em 127.0.0.1).
+Banco e workspaces ficam nos volumes `forge-data` e `forge-workspaces`. A imagem da API inclui o
+toolchain Go e git porque o agente compila e testa os jogos. O serviço de sprites roda nativo no Mac
+(Docker no macOS não acessa a GPU).
 
 ### Agente real (Claude)
 

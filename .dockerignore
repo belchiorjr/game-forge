@@ -1,0 +1,11 @@
+**/node_modules
+**/.next
+data
+workspaces
+bin
+apps/web
+apps/sprites
+*.skill
+.git
+**/.env*
+templates/ebiten-game/web/game.wasm
