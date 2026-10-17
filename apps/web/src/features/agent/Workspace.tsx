@@ -14,7 +14,7 @@ export function Workspace({ projectId }: { projectId: string }) {
   const { state, connection } = useProjectEvents(projectId);
   const [project, setProject] = useState<Project | null>(null);
   const [notFound, setNotFound] = useState(false);
-  const [tab, setTab] = useState<CenterTab>("code");
+  const [tab, setTab] = useState<CenterTab>("preview");
 
   useEffect(() => {
     api.getProject(projectId).then(setProject).catch(() => setNotFound(true));
@@ -73,7 +73,7 @@ export function Workspace({ projectId }: { projectId: string }) {
           </div>
           <div className="min-h-0 flex-1">
             {tab === "preview" ? (
-              <PreviewPane />
+              <PreviewPane projectId={projectId} build={state.build} running={running} />
             ) : (
               <CodePane
                 projectId={projectId}

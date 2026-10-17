@@ -1,0 +1,11 @@
+package render
+
+import "image/color"
+
+// Palette of the game. Change these to restyle everything at once.
+var (
+	sky      = color.RGBA{0x1b, 0x1e, 0x3c, 0xff}
+	ground   = color.RGBA{0x3a, 0x2e, 0x4f, 0xff}
+	hero     = color.RGBA{0xff, 0x7a, 0x33, 0xff}
+	obstacle = color.RGBA{0xe8, 0xe6, 0xf0, 0xff}
+)

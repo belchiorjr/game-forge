@@ -9,6 +9,7 @@ type CommandSpec struct {
 	ProjectID string
 	Name      string // must be on the adapter's allowlist; never a shell string
 	Args      []string
+	Env       map[string]string // extra variables; the adapter accepts only a small allowlist
 	Timeout   time.Duration
 	MaxOutput int
 }

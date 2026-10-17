@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -31,6 +32,7 @@ type Loop struct {
 	projects port.ProjectRepository
 	runs     port.RunRepository
 	ws       port.Workspace
+	sandbox  port.Sandbox
 	llm      port.LLM
 	bus      port.EventBus
 	clock    func() time.Time
@@ -38,8 +40,8 @@ type Loop struct {
 	tools    map[string]tool
 }
 
-func NewLoop(projects port.ProjectRepository, runs port.RunRepository, ws port.Workspace, llm port.LLM, bus port.EventBus, clock func() time.Time, cfg Config) *Loop {
-	return &Loop{projects: projects, runs: runs, ws: ws, llm: llm, bus: bus, clock: clock, cfg: cfg, tools: registry()}
+func NewLoop(projects port.ProjectRepository, runs port.RunRepository, ws port.Workspace, sb port.Sandbox, llm port.LLM, bus port.EventBus, clock func() time.Time, cfg Config) *Loop {
+	return &Loop{projects: projects, runs: runs, ws: ws, sandbox: sb, llm: llm, bus: bus, clock: clock, cfg: cfg, tools: registry()}
 }
 
 // Run drives the run to a final status. ctx is owned by the supervisor (cancel/timeout).
@@ -90,7 +92,7 @@ func (l *Loop) work(ctx context.Context, run *domain.Run) (string, port.Usage, e
 	if err != nil {
 		return "", total, err
 	}
-	env := &toolEnv{ctx: ctx, projectID: run.ProjectID, runID: run.ID, ws: l.ws, bus: l.bus, maxFile: l.cfg.MaxFileSize}
+	env := &toolEnv{ctx: ctx, projectID: run.ProjectID, runID: run.ID, ws: l.ws, sandbox: l.sandbox, bus: l.bus, maxFile: l.cfg.MaxFileSize, passed: map[string]bool{}}
 	msgs := []port.Message{{Role: "user", Text: l.orientation(ctx, project, run.Prompt)}}
 	defs := l.toolDefs()
 
@@ -127,7 +129,9 @@ func (l *Loop) work(ctx context.Context, run *domain.Run) (string, port.Usage, e
 
 func (l *Loop) execTool(env *toolEnv, call port.ToolCall) (string, bool) {
 	start := l.clock()
-	env.publish(domain.EventToolStarted, map[string]string{"tool_call_id": call.ID, "name": call.Name, "args": truncate(string(call.Input), 300)})
+	var target struct{ Path string }
+	_ = json.Unmarshal(call.Input, &target) // file tools carry a path the UI shows even when args are cut
+	env.publish(domain.EventToolStarted, map[string]string{"tool_call_id": call.ID, "name": call.Name, "path": target.Path, "args": truncate(string(call.Input), 300)})
 	t, ok := l.tools[call.Name]
 	var out string
 	var err error

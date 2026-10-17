@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/belchiorjr/game-forge/apps/api/internal/domain"
+	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/buildpreview"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/cancelrun"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/createproject"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/getproject"
@@ -40,6 +41,7 @@ type UseCases struct {
 	ReadFile      *readfile.UseCase
 	WriteFile     *writefile.UseCase
 	LLMSettings   *llmsettings.UseCase
+	BuildPreview  *buildpreview.UseCase
 }
 
 type Server struct {
@@ -48,10 +50,11 @@ type Server struct {
 	openapi   []byte
 	heartbeat time.Duration
 	idem      *idempotency
+	wasmExec  string // path of wasm_exec.js from the Go toolchain
 }
 
-func NewServer(uc UseCases, token string, openapi []byte) *Server {
-	return &Server{uc: uc, token: token, openapi: openapi, heartbeat: 15 * time.Second, idem: newIdempotency(10 * time.Minute)}
+func NewServer(uc UseCases, token string, openapi []byte, wasmExec string) *Server {
+	return &Server{uc: uc, token: token, openapi: openapi, heartbeat: 15 * time.Second, idem: newIdempotency(10 * time.Minute), wasmExec: wasmExec}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -67,6 +70,8 @@ func (s *Server) Handler() http.Handler {
 	api.HandleFunc("GET /projects/{id}/files", s.listFiles)
 	api.HandleFunc("GET /projects/{id}/files/content", s.readFile)
 	api.HandleFunc("PUT /projects/{id}/files/content", s.writeFile)
+	api.HandleFunc("POST /projects/{id}/builds", s.startBuild)
+	api.HandleFunc("GET /projects/{id}/preview/{file...}", s.preview)
 	api.HandleFunc("GET /settings/llm", s.getLLMSettings)
 	api.HandleFunc("PUT /settings/llm", s.putLLMSettings)
 	api.HandleFunc("POST /settings/llm/test", s.testLLMSettings)

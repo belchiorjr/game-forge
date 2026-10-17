@@ -12,15 +12,14 @@ const TOOL_LABEL: Record<string, string> = {
   update_plan: "Atualizou o plano",
   note: "Anotou em AGENT_NOTES.md",
   finish: "Concluiu",
+  go_fmt: "gofmt",
+  go_vet: "go vet",
+  go_build: "go build",
+  go_test: "go test",
+  build_wasm: "Build do preview",
 };
 
-function toolLine(name: string, args: string) {
-  let path = "";
-  try {
-    path = JSON.parse(args).path ?? "";
-  } catch {
-    // args may be truncated by the API; fall back to the name only
-  }
+function toolLine(name: string, path: string) {
   return `${TOOL_LABEL[name] ?? name}${path ? ` ${path}` : ""}`;
 }
 
@@ -42,7 +41,7 @@ function Item({ it }: { it: TimelineItem }) {
             <span className={it.ok === undefined ? "animate-pulse" : it.ok ? "text-ok" : "text-bad"} aria-hidden>
               {it.ok === undefined ? "●" : it.ok ? "✓" : "✗"}
             </span>
-            <span className="truncate font-mono">{toolLine(it.name, it.args)}</span>
+            <span className="truncate font-mono">{toolLine(it.name, it.path)}</span>
             {it.durationMs !== undefined && <span className="ml-auto shrink-0">{it.durationMs} ms</span>}
           </button>
           {open && it.output && (

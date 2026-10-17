@@ -12,9 +12,11 @@ export type ForgeEvent = Envelope &
     | { type: "run.finished"; status: RunStatus; summary: string; commit: string; usage: Usage }
     | { type: "agent.message"; text: string }
     | { type: "agent.plan"; items: PlanItem[] }
-    | { type: "tool.started"; tool_call_id: string; name: string; args: string }
+    | { type: "tool.started"; tool_call_id: string; name: string; path: string; args: string }
     | { type: "tool.finished"; tool_call_id: string; name: string; ok: boolean; output: string; duration_ms: number }
     | { type: "file.changed"; path: string; kind: "created" | "modified" | "deleted" }
+    | { type: "build.started"; target: string }
+    | { type: "build.finished"; target: string; ok: boolean; duration_ms: number; output: string }
     | { type: "usage"; input_tokens: number; output_tokens: number }
     | { type: "error"; code: string; message: string; recoverable: boolean }
   );
@@ -29,6 +31,8 @@ export const EVENT_TYPES: EventType[] = [
   "tool.started",
   "tool.finished",
   "file.changed",
+  "build.started",
+  "build.finished",
   "usage",
   "error",
 ];

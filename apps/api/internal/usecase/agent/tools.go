@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -16,7 +17,9 @@ type toolEnv struct {
 	projectID string
 	runID     string
 	ws        port.Workspace
+	sandbox   port.Sandbox
 	bus       port.EventBus
+	passed    map[string]bool // gate checks that passed since the last code change
 	maxFile   int
 	finished  bool
 	summary   string
@@ -95,6 +98,7 @@ func registry() map[string]tool {
 				if err := env.ws.WriteFile(env.ctx, env.projectID, in.Path, []byte(in.Content)); err != nil {
 					return "", err
 				}
+				env.codeChanged(in.Path)
 				env.publish(domain.EventFileChanged, map[string]string{"path": in.Path, "kind": "modified"})
 				return "ok", nil
 			},
@@ -121,6 +125,7 @@ func registry() map[string]tool {
 				if err := env.ws.WriteFile(env.ctx, env.projectID, in.Path, []byte(out)); err != nil {
 					return "", err
 				}
+				env.codeChanged(in.Path)
 				env.publish(domain.EventFileChanged, map[string]string{"path": in.Path, "kind": "modified"})
 				return "ok", nil
 			},
@@ -161,18 +166,22 @@ func registry() map[string]tool {
 			},
 		},
 		{
-			def: port.ToolDef{Name: "finish", Description: "Declare the requested work done, with a short summary for the person.",
+			def: port.ToolDef{Name: "finish", Description: "Declare the requested work done, with a short summary for the person. Rejected unless go_fmt, go_vet, go_build, go_test and build_wasm all passed after your last code change.",
 				Schema: schema(`"summary":{"type":"string"}`, "summary")},
 			handler: func(env *toolEnv, raw json.RawMessage) (string, error) {
 				in, err := decode[struct{ Summary string }](raw)
 				if err != nil {
 					return "", err
 				}
+				if report := env.gateReport(); report != "" {
+					return "", errors.New(report)
+				}
 				env.finished, env.summary = true, in.Summary
 				return "ok", nil
 			},
 		},
 	}
+	tools = append(tools, checkTools()...)
 	m := make(map[string]tool, len(tools))
 	for _, t := range tools {
 		m[t.def.Name] = t

@@ -77,6 +77,15 @@ func (b *recBus) Subscribe(context.Context, string, int64) (<-chan domain.Event,
 	return nil, nil
 }
 
+type okSandbox struct{ fail map[string]bool }
+
+func (s okSandbox) Run(_ context.Context, spec port.CommandSpec) (port.CommandResult, error) {
+	if s.fail[spec.Args[0]] {
+		return port.CommandResult{ExitCode: 1, Output: "boom"}, nil
+	}
+	return port.CommandResult{}, nil
+}
+
 // scripted returns the given responses in order, then repeats the last one.
 type scripted struct {
 	steps   []port.LLMResponse
@@ -103,25 +112,52 @@ func (s *scripted) Complete(ctx context.Context, _ string, msgs []port.Message, 
 	return s.steps[i], nil
 }
 
+// gate runs every gate check, as a model would before finishing.
+func gate() []port.LLMResponse {
+	var out []port.LLMResponse
+	for _, c := range gateChecks {
+		out = append(out, call("g_"+c, c, `{}`))
+	}
+	return out
+}
+
+func steps(parts ...any) []port.LLMResponse {
+	var out []port.LLMResponse
+	for _, p := range parts {
+		switch v := p.(type) {
+		case port.LLMResponse:
+			out = append(out, v)
+		case []port.LLMResponse:
+			out = append(out, v...)
+		}
+	}
+	return out
+}
+
 func call(id, name, input string) port.LLMResponse {
 	return port.LLMResponse{ToolCalls: []port.ToolCall{{ID: id, Name: name, Input: []byte(input)}}}
 }
 
 func newTestLoop(llm port.LLM, maxSteps int) (*Loop, *memWS, *memRuns, *recBus) {
+	return newTestLoopSB(llm, maxSteps, okSandbox{})
+}
+
+func newTestLoopSB(llm port.LLM, maxSteps int, sb port.Sandbox) (*Loop, *memWS, *memRuns, *recBus) {
 	ws, runs, bus := &memWS{files: map[string]string{"docs/GDD.md": "# GDD"}}, &memRuns{}, &recBus{}
 	cfg := DefaultConfig()
 	cfg.MaxSteps = maxSteps
-	return NewLoop(oneProject{}, runs, ws, llm, bus, func() time.Time { return time.Unix(0, 0) }, cfg), ws, runs, bus
+	return NewLoop(oneProject{}, runs, ws, sb, llm, bus, func() time.Time { return time.Unix(0, 0) }, cfg), ws, runs, bus
 }
 
 // ---- tests ----
 
 func TestLoopSuccess(t *testing.T) {
-	llm := &scripted{steps: []port.LLMResponse{
+	llm := &scripted{steps: steps(
 		call("1", "write_file", `{"path":"internal/logic/a.go","content":"package logic"}`),
 		call("2", "edit_file", `{"path":"internal/logic/a.go","old":"logic","new":"logic // ok"}`),
+		gate(),
 		call("3", "finish", `{"summary":"done"}`),
-	}}
+	)}
 	loop, ws, runs, bus := newTestLoop(llm, 10)
 	loop.Run(context.Background(), domain.NewRun("r1", "p1", "make it", time.Unix(0, 0)))
 
@@ -140,14 +176,15 @@ func TestLoopSuccess(t *testing.T) {
 }
 
 func TestLoopToolErrorIsFedBack(t *testing.T) {
-	llm := &scripted{steps: []port.LLMResponse{
+	llm := &scripted{steps: steps(
 		call("1", "edit_file", `{"path":"docs/GDD.md","old":"missing","new":"x"}`),
+		gate(),
 		call("2", "finish", `{"summary":"done"}`),
-	}}
+	)}
 	loop, _, runs, _ := newTestLoop(llm, 10)
 	loop.Run(context.Background(), domain.NewRun("r1", "p1", "go", time.Unix(0, 0)))
 
-	last := llm.seen[1][len(llm.seen[1])-1]
+	last := llm.seen[1][len(llm.seen[1])-1] // result of the failed edit, seen on the next call
 	if last.Role != "tool" || !last.IsError || !strings.Contains(last.Text, "exactly once") {
 		t.Fatalf("tool error not fed back: %+v", last)
 	}
@@ -183,5 +220,40 @@ func TestLoopCancel(t *testing.T) {
 	sup.Shutdown()
 	if runs.last.Status != domain.RunCancelled {
 		t.Fatalf("status = %s", runs.last.Status)
+	}
+}
+
+func TestGateRejectsEarlyFinish(t *testing.T) {
+	llm := &scripted{steps: steps(
+		call("1", "write_file", `{"path":"internal/logic/a.go","content":"package logic"}`),
+		call("2", "finish", `{"summary":"too early"}`),
+		gate(),
+		call("3", "write_file", `{"path":"internal/logic/b.go","content":"package logic"}`), // invalidates the gate
+		call("4", "finish", `{"summary":"still early"}`),
+		gate(),
+		call("5", "finish", `{"summary":"done"}`),
+	)}
+	loop, _, runs, _ := newTestLoop(llm, 30)
+	loop.Run(context.Background(), domain.NewRun("r1", "p1", "go", time.Unix(0, 0)))
+
+	rejected := 0
+	for _, msgs := range llm.seen {
+		last := msgs[len(msgs)-1]
+		if last.Role == "tool" && last.IsError && strings.Contains(last.Text, "verify gate") {
+			rejected++
+		}
+	}
+	if rejected != 2 || runs.last.Status != domain.RunSucceeded {
+		t.Fatalf("rejected = %d status = %s", rejected, runs.last.Status)
+	}
+}
+
+func TestGateFailingCheckEndsRunAsFailed(t *testing.T) {
+	llm := &scripted{steps: steps(gate(), call("1", "finish", `{"summary":"done"}`))}
+	loop, ws, runs, _ := newTestLoopSB(llm, len(gateChecks)+3, okSandbox{fail: map[string]bool{"test": true}})
+	loop.Run(context.Background(), domain.NewRun("r1", "p1", "go", time.Unix(0, 0)))
+
+	if runs.last.Status != domain.RunFailed || !strings.HasPrefix(ws.commits[0], "wip:") {
+		t.Fatalf("status = %s commits = %v", runs.last.Status, ws.commits)
 	}
 }

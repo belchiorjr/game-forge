@@ -47,6 +47,9 @@ export const api = {
   startRun: (id: string, prompt: string, idempotencyKey: string) =>
     request<{ run_id: string }>(`/projects/${id}/runs`, json("POST", { prompt }, { "idempotency-key": idempotencyKey })),
   cancelRun: (id: string, runId: string) => request<unknown>(`/projects/${id}/runs/${runId}/cancel`, { method: "POST" }),
+  startBuild: (id: string) => request<unknown>(`/projects/${id}/builds`, json("POST", { target: "wasm" })),
+  hasPreview: (id: string) =>
+    fetch(`${BASE}/projects/${id}/preview/game.wasm`, { method: "HEAD", cache: "no-store" }).then((r) => r.ok),
   listFiles: (id: string) => request<{ files: FileInfo[] }>(`/projects/${id}/files`).then((r) => r.files),
   readFile: (id: string, path: string) =>
     request<string>(`/projects/${id}/files/content?path=${encodeURIComponent(path)}`),

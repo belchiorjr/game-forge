@@ -9,9 +9,11 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -20,9 +22,11 @@ import (
 	"github.com/belchiorjr/game-forge/apps/api/internal/adapter/fsworkspace"
 	httpadapter "github.com/belchiorjr/game-forge/apps/api/internal/adapter/http"
 	"github.com/belchiorjr/game-forge/apps/api/internal/adapter/llm"
+	"github.com/belchiorjr/game-forge/apps/api/internal/adapter/sandbox"
 	"github.com/belchiorjr/game-forge/apps/api/internal/adapter/sqlite"
 	"github.com/belchiorjr/game-forge/apps/api/internal/domain"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/agent"
+	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/buildpreview"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/cancelrun"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/createproject"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/getproject"
@@ -41,6 +45,7 @@ import (
 type config struct {
 	Addr, DataDir, WorkspacesDir, TemplatesDir, Template, Token string
 	LLM, Model                                                  string
+	GoCacheDir, GoModCacheDir                                   string
 	Fallback                                                    bool
 	FakeDelay, RunTimeout                                       time.Duration
 	MaxSteps                                                    int
@@ -70,6 +75,9 @@ func loadConfig() config {
 		FakeDelay:     fakeDelay,
 		RunTimeout:    timeout,
 		MaxSteps:      maxSteps,
+		GoCacheDir:    env("FORGE_GOCACHE", filepath.Join(env("FORGE_DATA_DIR", "../../data"), "gocache")),
+		// Shared with the host's module cache so game builds reuse already downloaded modules.
+		GoModCacheDir: env("FORGE_GOMODCACHE", goEnv("GOMODCACHE")),
 	}
 }
 
@@ -93,6 +101,26 @@ func loadSecret(cfg config) ([]byte, error) {
 	}
 	slog.Info("generated settings encryption key", "path", path)
 	return key, nil
+}
+
+func goEnv(key string) string {
+	out, err := exec.Command("go", "env", key).Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// wasmExecPath finds wasm_exec.js in the toolchain that builds the games (location moved in Go 1.24).
+func wasmExecPath() string {
+	root := goEnv("GOROOT")
+	for _, p := range []string{"lib/wasm/wasm_exec.js", "misc/wasm/wasm_exec.js"} {
+		if _, err := os.Stat(filepath.Join(root, p)); err == nil {
+			return filepath.Join(root, p)
+		}
+	}
+	slog.Warn("wasm_exec.js not found; the preview will not load", "goroot", root)
+	return ""
 }
 
 func newID() string {
@@ -122,6 +150,7 @@ func main() {
 	projects, runs := sqlite.NewProjectRepo(db), sqlite.NewRunRepo(db)
 	ws := must(fsworkspace.New(cfg.WorkspacesDir, cfg.TemplatesDir))
 	bus := eventbus.New(sqlite.NewEventRepo(db), time.Now)
+	sb := must(sandbox.NewLocal(cfg.WorkspacesDir, cfg.GoCacheDir, cfg.GoModCacheDir))
 
 	secret := must(loadSecret(cfg))
 	settingsRepo := must(sqlite.NewSettingsRepo(db, secret))
@@ -144,7 +173,7 @@ func main() {
 	// Use cases.
 	agentCfg := agent.DefaultConfig()
 	agentCfg.MaxSteps = cfg.MaxSteps
-	loop := agent.NewLoop(projects, runs, ws, model, bus, time.Now, agentCfg)
+	loop := agent.NewLoop(projects, runs, ws, sb, model, bus, time.Now, agentCfg)
 	sup := agent.NewSupervisor(loop, cfg.RunTimeout)
 
 	uc := httpadapter.UseCases{
@@ -160,13 +189,14 @@ func main() {
 		ReadFile:      readfile.New(projects, ws),
 		WriteFile:     writefile.New(projects, runs, ws, bus),
 		LLMSettings:   settings,
+		BuildPreview:  buildpreview.New(projects, runs, sb, bus),
 	}
 	// Cancelled on shutdown so long-lived SSE requests end instead of holding Shutdown open.
 	baseCtx, cancelBase := context.WithCancel(context.Background())
 	srv := &http.Server{
 		Addr:              cfg.Addr,
 		BaseContext:       func(net.Listener) context.Context { return baseCtx },
-		Handler:           httpadapter.NewServer(uc, cfg.Token, api.OpenAPI).Handler(),
+		Handler:           httpadapter.NewServer(uc, cfg.Token, api.OpenAPI, wasmExecPath()).Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 

@@ -3,11 +3,19 @@ import type { ForgeEvent, PlanItem, Usage } from "./types";
 export type TimelineItem =
   | { kind: "user"; seq: number; runId: string; text: string }
   | { kind: "agent"; seq: number; runId: string; text: string }
-  | { kind: "tool"; seq: number; runId: string; id: string; name: string; args: string; ok?: boolean; output?: string; durationMs?: number }
+  | { kind: "tool"; seq: number; runId: string; id: string; name: string; path: string; args: string; ok?: boolean; output?: string; durationMs?: number }
   | { kind: "finished"; seq: number; runId: string; status: string; summary: string; commit: string }
   | { kind: "error"; seq: number; runId: string; message: string };
 
+export type BuildState = {
+  status: "idle" | "building" | "ok" | "failed";
+  version: number; // bumps on every successful wasm build; the preview reloads on change
+  output: string;
+  durationMs: number;
+};
+
 export type TimelineState = {
+  build: BuildState;
   lastSeq: number;
   items: TimelineItem[];
   activeRunId: string | null;
@@ -18,6 +26,7 @@ export type TimelineState = {
 };
 
 export const initialTimeline: TimelineState = {
+  build: { status: "idle", version: 0, output: "", durationMs: 0 },
   lastSeq: 0,
   items: [],
   activeRunId: null,
@@ -53,7 +62,7 @@ export function timelineReducer(state: TimelineState, e: ForgeEvent): TimelineSt
     case "agent.plan":
       return { ...s, plan: e.items };
     case "tool.started":
-      return { ...s, items: [...s.items, { kind: "tool", ...base, id: e.tool_call_id, name: e.name, args: e.args }] };
+      return { ...s, items: [...s.items, { kind: "tool", ...base, id: e.tool_call_id, name: e.name, path: e.path ?? "", args: e.args }] };
     case "tool.finished":
       return {
         ...s,
@@ -68,6 +77,18 @@ export function timelineReducer(state: TimelineState, e: ForgeEvent): TimelineSt
         ...s,
         fileVersion: s.fileVersion + 1,
         changedFiles: s.changedFiles.includes(e.path) ? s.changedFiles : [...s.changedFiles, e.path],
+      };
+    case "build.started":
+      return { ...s, build: { ...s.build, status: "building" } };
+    case "build.finished":
+      return {
+        ...s,
+        build: {
+          status: e.ok ? "ok" : "failed",
+          version: e.ok ? s.build.version + 1 : s.build.version,
+          output: e.output,
+          durationMs: e.duration_ms,
+        },
       };
     case "usage":
       return { ...s, usage: { input_tokens: e.input_tokens, output_tokens: e.output_tokens } };

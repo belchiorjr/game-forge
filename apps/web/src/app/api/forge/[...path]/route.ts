@@ -41,4 +41,4 @@ async function proxy(req: Request, ctx: RouteContext<"/api/forge/[...path]">) {
   return new Response(upstream.body, { status: upstream.status, headers: out });
 }
 
-export { proxy as GET, proxy as POST, proxy as PUT, proxy as DELETE };
+export { proxy as GET, proxy as HEAD, proxy as POST, proxy as PUT, proxy as DELETE };

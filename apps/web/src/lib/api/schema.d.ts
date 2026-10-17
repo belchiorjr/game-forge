@@ -432,6 +432,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{id}/builds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Build a target outside an agent run (only wasm for now); progress on the event stream */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["ProjectID"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        target: "wasm";
+                    };
+                };
+            };
+            responses: {
+                /** @description Building */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                409: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{id}/preview/{file}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProjectID"];
+                file: string;
+            };
+            cookie?: never;
+        };
+        /** Latest WASM preview (index.html, wasm_exec.js, game.wasm) with correct media types */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["ProjectID"];
+                    file: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description File */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                404: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/settings/llm": {
         parameters: {
             query?: never;
@@ -577,7 +664,7 @@ export interface components {
             size: number;
         };
         /** @enum {string} */
-        EventType: "run.started" | "run.finished" | "agent.message" | "agent.plan" | "tool.started" | "tool.finished" | "file.changed" | "usage" | "error";
+        EventType: "run.started" | "run.finished" | "agent.message" | "agent.plan" | "tool.started" | "tool.finished" | "file.changed" | "build.started" | "build.finished" | "usage" | "error";
         /** @enum {string} */
         LLMProvider: "fake" | "anthropic";
         LLMSettings: {

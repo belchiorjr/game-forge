@@ -71,9 +71,10 @@ make test         # template + API (vet, race, archtest) + web (tsc, eslint)
 
 1. ✅ Esqueleto da API, domínio, portas, SQLite, workspace com git, `/healthz`
 2. ✅ `CreateProject` / `StartRun`, agente fake, stream SSE com replay, web ligada
-3. 🟡 Adapter Anthropic + loop + ferramentas de arquivo prontos; **falta o verify gate** (go_build/go_test/build_wasm/smoke_test via sandbox)
-4. 🟡 Template Ebitengine compila p/ desktop e WASM; **falta servir o preview** pela API
-5. ⬜ Smoke test headless (Playwright)
+3. ✅ Adapter Anthropic, loop, ferramentas de arquivo e build/teste em sandbox, **verify gate** (fmt, vet, build, test, build_wasm)
+4. ✅ Template Ebitengine + preview WASM servido pela API e recarregado ao vivo na web a cada build
+5. ⬜ Smoke test headless (Playwright) — entra no gate quando pronto
+5b. ⬜ Emulador Android ao vivo no painel (AVD local, nativo no Mac)
 6. ⬜ Serviço de sprites + `generate_sprite` / `view_image`
 7. ⬜ Builds mobile (Android, iOS)
 8. ⬜ Polimento: Monaco, diffs, revert na UI, logs, medidor de custo

@@ -139,6 +139,30 @@ paths:
             application/json:
               schema: { type: object, required: [commit], properties: { commit: { type: string } } }
         "409": { $ref: "#/components/responses/Error" }
+  /projects/{id}/builds:
+    parameters: [{ $ref: "#/components/parameters/ProjectID" }]
+    post:
+      summary: Build a target outside an agent run (only wasm for now); progress on the event stream
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target]
+              properties: { target: { type: string, enum: [wasm] } }
+      responses:
+        "202": { description: Building }
+        "409": { $ref: "#/components/responses/Error" }
+  /projects/{id}/preview/{file}:
+    parameters:
+      - { $ref: "#/components/parameters/ProjectID" }
+      - { name: file, in: path, required: true, schema: { type: string } }
+    get:
+      summary: Latest WASM preview (index.html, wasm_exec.js, game.wasm) with correct media types
+      responses:
+        "200": { description: File }
+        "404": { $ref: "#/components/responses/Error" }
   /settings/llm:
     get:
       summary: Current LLM configuration (the API key is never returned, only masked)
@@ -226,7 +250,7 @@ components:
         size: { type: integer }
     EventType:
       type: string
-      enum: [run.started, run.finished, agent.message, agent.plan, tool.started, tool.finished, file.changed, usage, error]
+      enum: [run.started, run.finished, agent.message, agent.plan, tool.started, tool.finished, file.changed, build.started, build.finished, usage, error]
     LLMProvider:
       type: string
       enum: [fake, anthropic]
