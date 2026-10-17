@@ -105,6 +105,8 @@ func (s *Server) auth(next http.Handler) http.Handler {
 func logRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
+		// Lets the web proxy tell this API apart from another service on the same port.
+		w.Header().Set("X-Forge-API", "1")
 		next.ServeHTTP(w, r)
 		slog.Info("http", "method", r.Method, "path", r.URL.Path, "dur", time.Since(start).Round(time.Millisecond))
 	})

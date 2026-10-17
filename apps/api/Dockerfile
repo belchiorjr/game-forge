@@ -24,12 +24,12 @@ COPY --from=modcache --chown=forge:forge /go/pkg/mod /go/pkg/mod
 COPY --from=build /out/forge-api /usr/local/bin/forge-api
 COPY templates /app/templates
 USER forge
-ENV FORGE_ADDR=:8080 \
+ENV FORGE_ADDR=:8787 \
     FORGE_DATA_DIR=/data \
     FORGE_WORKSPACES_DIR=/workspaces \
     FORGE_TEMPLATES_DIR=/app/templates \
     GOFLAGS=-mod=mod \
     GOCACHE=/data/gocache
-EXPOSE 8080
-HEALTHCHECK --interval=15s --timeout=3s CMD wget -qO- http://localhost:8080/healthz || exit 1
+EXPOSE 8787
+HEALTHCHECK --interval=15s --timeout=3s CMD wget -qO- http://localhost:8787/healthz || exit 1
 ENTRYPOINT ["forge-api"]

@@ -63,7 +63,7 @@ func loadConfig() config {
 	fakeDelay, _ := time.ParseDuration(env("FORGE_FAKE_DELAY", "700ms"))
 	timeout, _ := time.ParseDuration(env("FORGE_RUN_TIMEOUT", "30m"))
 	return config{
-		Addr:          env("FORGE_ADDR", ":8080"),
+		Addr:          env("FORGE_ADDR", ":8787"),
 		DataDir:       env("FORGE_DATA_DIR", "../../data"),
 		WorkspacesDir: env("FORGE_WORKSPACES_DIR", "../../workspaces"),
 		TemplatesDir:  env("FORGE_TEMPLATES_DIR", "../../templates"),

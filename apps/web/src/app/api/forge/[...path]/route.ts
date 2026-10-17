@@ -6,7 +6,7 @@ const FORWARD_RESPONSE_HEADERS = ["content-type", "cache-control", "x-accel-buff
 
 async function proxy(req: Request, ctx: RouteContext<"/api/forge/[...path]">) {
   const { path } = await ctx.params;
-  const base = process.env.FORGE_API_URL ?? "http://localhost:8080";
+  const base = process.env.FORGE_API_URL ?? "http://localhost:8787";
   const search = new URL(req.url).search;
 
   const headers = new Headers();
@@ -28,7 +28,28 @@ async function proxy(req: Request, ctx: RouteContext<"/api/forge/[...path]">) {
     });
   } catch {
     return Response.json(
-      { error: { code: "api_unreachable", message: "Go API is not reachable", details: {} } },
+      {
+        error: {
+          code: "api_unreachable",
+          message: `API do Game Forge fora do ar em ${base}. Rode make api (ou make dev).`,
+          details: {},
+        },
+      },
+      { status: 502 },
+    );
+  }
+
+  // Something else answered on FORGE_API_URL (a common clash when another stack uses the port).
+  if (!upstream.headers.get("x-forge-api")) {
+    await upstream.body?.cancel();
+    return Response.json(
+      {
+        error: {
+          code: "wrong_upstream",
+          message: `${base} respondeu, mas não é a API do Game Forge. Confira FORGE_API_URL e se a API está rodando (make api).`,
+          details: {},
+        },
+      },
       { status: 502 },
     );
   }

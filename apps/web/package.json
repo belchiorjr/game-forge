@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3300",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3300",
     "lint": "eslint",
     "types": "openapi-typescript ../api/api/openapi.yaml -o src/lib/api/schema.d.ts",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "e2e": "bash ../../scripts/e2e.sh"
   },
   "dependencies": {
     "next": "16.4.2",
@@ -16,6 +17,7 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

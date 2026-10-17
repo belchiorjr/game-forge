@@ -18,17 +18,17 @@ services:
       - forge-data:/data
       - forge-workspaces:/workspaces
     ports:
-      - "127.0.0.1:${FORGE_API_PORT:-8080}:8080" # local only: the API runs agent-written code
+      - "127.0.0.1:${FORGE_API_PORT:-8787}:8787" # local only: the API runs agent-written code
     restart: unless-stopped
 
   web:
     build:
       context: apps/web
     environment:
-      FORGE_API_URL: http://api:8080
+      FORGE_API_URL: http://api:8787
       FORGE_API_TOKEN: ${FORGE_API_TOKEN:-change-me}
     ports:
-      - "127.0.0.1:${FORGE_WEB_PORT:-3000}:3000"
+      - "127.0.0.1:${FORGE_WEB_PORT:-3300}:3300"
     depends_on:
       api:
         condition: service_healthy

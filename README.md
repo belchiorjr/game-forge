@@ -20,10 +20,10 @@ apps/sprites            (serviço Python de sprites, nativo no Mac — ainda nã
 Requisitos: Go 1.25+, Node 20+, git.
 
 ```bash
-make install && make dev   # API em :8080 (agente fake) + web em :3000
+make install && make dev   # API em :8787 (agente fake) + web em :3300
 ```
 
-Abra http://localhost:3000, descreva um jogo e acompanhe o agente na timeline.
+Abra http://localhost:3300, descreva um jogo e acompanhe o agente na timeline.
 
 Todos os comandos: `make help`.
 
@@ -35,7 +35,7 @@ make docker-logs
 make docker-down
 ```
 
-Portas do host via `FORGE_WEB_PORT` / `FORGE_API_PORT` no `.env` (padrão 3000/8080, só em 127.0.0.1).
+Portas do host via `FORGE_WEB_PORT` / `FORGE_API_PORT` no `.env` (padrão 3300/8787, só em 127.0.0.1).
 Banco e workspaces ficam nos volumes `forge-data` e `forge-workspaces`. A imagem da API inclui o
 toolchain Go e git porque o agente compila e testa os jogos. O serviço de sprites roda nativo no Mac
 (Docker no macOS não acessa a GPU).
@@ -65,7 +65,14 @@ A web não tem login: mantenha-a acessível só na sua máquina.
 
 ```bash
 make test         # template + API (vet, race, archtest) + web (tsc, eslint)
+make e2e          # teste global: sobe API + web isoladas e roda a suíte Playwright no navegador
+make test-all     # os dois
 ```
+
+O e2e usa portas livres e dados temporários, então não interfere em nada que esteja rodando.
+Cobre: proxy e contrato de erros, Configurações (testar/salvar/mascarar/remover chave), criar jogo,
+gate do agente, jogo rodando no preview e respondendo a toque, replay da timeline, bloqueio do
+editor durante o run, 409 de run duplicado, edição manual com commit, build manual e path jail.
 
 ## Status do MVP
 

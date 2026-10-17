@@ -15,11 +15,11 @@ RUN npm run build
 
 FROM node:22-alpine
 WORKDIR /app
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3300 HOSTNAME=0.0.0.0
 RUN adduser -D -u 10001 web
 COPY --from=build --chown=web /app/.next/standalone ./
 COPY --from=build --chown=web /app/.next/static ./.next/static
 COPY --from=build --chown=web /app/public ./public
 USER web
-EXPOSE 3000
+EXPOSE 3300
 CMD ["node", "server.js"]

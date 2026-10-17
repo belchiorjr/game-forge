@@ -41,6 +41,7 @@ function Item({ it }: { it: TimelineItem }) {
             <span className={it.ok === undefined ? "animate-pulse" : it.ok ? "text-ok" : "text-bad"} aria-hidden>
               {it.ok === undefined ? "●" : it.ok ? "✓" : "✗"}
             </span>
+            <span className="sr-only">{it.ok === undefined ? "rodando" : it.ok ? "concluído" : "falhou"}</span>
             <span className="truncate font-mono">{toolLine(it.name, it.path)}</span>
             {it.durationMs !== undefined && <span className="ml-auto shrink-0">{it.durationMs} ms</span>}
           </button>

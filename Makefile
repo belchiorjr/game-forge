@@ -6,9 +6,9 @@ TEMPLATE := templates/ebiten-game
 BIN      := bin
 
 .PHONY: help install dev api api-anthropic web build build-api build-web start \
-        test test-api test-web template-test arch lint fmt types \
+        test test-api test-web template-test e2e arch lint fmt types \
         template-run template-wasm template-serve clean reset-data \
-        docker-build docker-up docker-down docker-logs docker-ps docker-restart docker-clean
+        test-all docker-build docker-up docker-down docker-logs docker-ps docker-restart docker-clean
 
 ##@ Ajuda
 
@@ -31,13 +31,13 @@ install: ## Instala dependências (Go da API e do template, npm da web, .env.loc
 dev: ## Sobe API (agente fake) + web juntos
 	$(MAKE) -j2 api web
 
-api: ## Sobe só a API em :8080 (FORGE_LLM=fake por padrão)
+api: ## Sobe só a API em :8787 (FORGE_LLM=fake por padrão)
 	cd $(API) && go run ./cmd/api
 
 api-anthropic: ## Sobe a API com o agente real (Claude)
 	cd $(API) && FORGE_LLM=anthropic go run ./cmd/api
 
-web: ## Sobe só a web em :3000
+web: ## Sobe só a web em :3300
 	cd $(WEB) && npm run dev
 
 ##@ Build
@@ -62,6 +62,12 @@ _start-web:
 ##@ Qualidade
 
 test: template-test test-api test-web ## Roda todos os testes e checagens
+
+e2e: ## Teste global: sobe API + web isoladas e roda a suíte Playwright (KEEP=1 mantém logs)
+	@cd $(WEB) && npx playwright install chromium >/dev/null
+	./scripts/e2e.sh
+
+test-all: test e2e ## Tudo: testes unitários + e2e
 
 test-api: ## API: go vet + testes com -race (inclui archtest)
 	cd $(API) && go vet ./... && go test -race ./...
