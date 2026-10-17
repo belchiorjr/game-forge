@@ -1,0 +1,208 @@
+openapi: 3.0.3
+info:
+  title: Game Forge API
+  version: 0.2.0
+  description: |
+    REST + SSE contract between apps/web and apps/api. Long operations return 202 and report
+    progress on GET /projects/{id}/events. Generate web types with `make types`.
+servers:
+  - url: /api/v1
+security:
+  - bearer: []
+paths:
+  /projects:
+    post:
+      summary: Create a project from an idea (copies the template, creates the git repo)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateProjectRequest" }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/Project" } } } }
+        "422": { $ref: "#/components/responses/Error" }
+    get:
+      summary: List projects
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [projects]
+                properties:
+                  projects: { type: array, items: { $ref: "#/components/schemas/Project" } }
+  /projects/{id}:
+    parameters: [{ $ref: "#/components/parameters/ProjectID" }]
+    get:
+      summary: Project details with its latest run
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Project" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+  /projects/{id}/runs:
+    parameters: [{ $ref: "#/components/parameters/ProjectID" }]
+    post:
+      summary: Start an agent run
+      parameters:
+        - { name: Idempotency-Key, in: header, required: false, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prompt]
+              properties: { prompt: { type: string } }
+      responses:
+        "202":
+          description: Accepted
+          content:
+            application/json:
+              schema: { type: object, required: [run_id], properties: { run_id: { type: string } } }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+    get:
+      summary: Run history, newest first
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [runs]
+                properties:
+                  runs: { type: array, items: { $ref: "#/components/schemas/Run" } }
+  /projects/{id}/runs/{run_id}:
+    parameters: [{ $ref: "#/components/parameters/ProjectID" }, { $ref: "#/components/parameters/RunID" }]
+    get:
+      summary: Run status
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Run" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+  /projects/{id}/runs/{run_id}/cancel:
+    parameters: [{ $ref: "#/components/parameters/ProjectID" }, { $ref: "#/components/parameters/RunID" }]
+    post:
+      summary: Cancel an active run
+      responses:
+        "202": { description: Cancelling }
+        "409": { $ref: "#/components/responses/Error" }
+  /projects/{id}/events:
+    parameters: [{ $ref: "#/components/parameters/ProjectID" }]
+    get:
+      summary: Server-sent events; replays after Last-Event-ID (or ?after=) then streams live
+      parameters:
+        - { name: Last-Event-ID, in: header, required: false, schema: { type: string } }
+        - { name: after, in: query, required: false, schema: { type: integer } }
+      responses:
+        "200":
+          description: "text/event-stream; each message has id (seq), event (EventType) and data (JSON with seq, run_id, ts)"
+          content:
+            text/event-stream:
+              schema: { type: string }
+  /projects/{id}/files:
+    parameters: [{ $ref: "#/components/parameters/ProjectID" }]
+    get:
+      summary: Recursive file listing (skips .git and build output)
+      parameters:
+        - { name: dir, in: query, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [files]
+                properties:
+                  files: { type: array, items: { $ref: "#/components/schemas/FileInfo" } }
+  /projects/{id}/files/content:
+    parameters:
+      - { $ref: "#/components/parameters/ProjectID" }
+      - { name: path, in: query, required: true, schema: { type: string } }
+    get:
+      summary: File content (served with its detected media type)
+      responses:
+        "200": { description: OK, content: { text/plain: { schema: { type: string } } } }
+        "404": { $ref: "#/components/responses/Error" }
+    put:
+      summary: Manual edit; creates a commit. 409 edit_locked while a run is active
+      requestBody:
+        required: true
+        content:
+          text/plain: { schema: { type: string } }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { type: object, required: [commit], properties: { commit: { type: string } } }
+        "409": { $ref: "#/components/responses/Error" }
+components:
+  securitySchemes:
+    bearer: { type: http, scheme: bearer }
+  parameters:
+    ProjectID: { name: id, in: path, required: true, schema: { type: string } }
+    RunID: { name: run_id, in: path, required: true, schema: { type: string } }
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    CreateProjectRequest:
+      type: object
+      required: [name, idea]
+      properties:
+        name: { type: string, maxLength: 80 }
+        idea: { type: string }
+        genre: { type: string }
+        orientation: { type: string, enum: [portrait, landscape] }
+    Project:
+      type: object
+      required: [id, name, idea, genre, orientation, created_at]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        idea: { type: string }
+        genre: { type: string }
+        orientation: { type: string, enum: [portrait, landscape] }
+        created_at: { type: string, format: date-time }
+        latest_run: { $ref: "#/components/schemas/Run" }
+    RunStatus:
+      type: string
+      enum: [queued, running, succeeded, failed, cancelled]
+    Run:
+      type: object
+      required: [id, project_id, prompt, status, started_at, ended_at, commit]
+      properties:
+        id: { type: string }
+        project_id: { type: string }
+        prompt: { type: string }
+        status: { $ref: "#/components/schemas/RunStatus" }
+        started_at: { type: string, format: date-time }
+        ended_at: { type: string, format: date-time, nullable: true }
+        commit: { type: string }
+    FileInfo:
+      type: object
+      required: [path, is_dir, size]
+      properties:
+        path: { type: string }
+        is_dir: { type: boolean }
+        size: { type: integer }
+    EventType:
+      type: string
+      enum: [run.started, run.finished, agent.message, agent.plan, tool.started, tool.finished, file.changed, usage, error]
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, details]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: object, additionalProperties: true }

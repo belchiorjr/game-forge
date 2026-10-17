@@ -1,0 +1,12 @@
+workspaces/
+*.db
+.env
+node_modules/
+.next/
+.venv/
+__pycache__/
+out/
+data/
+apps/web/.env.local
+templates/ebiten-game/web/game.wasm
+templates/ebiten-game/web/wasm_exec.js

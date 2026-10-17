@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Game preview</title>
+  <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}</style>
+</head>
+<body>
+  <script src="wasm_exec.js"></script>
+  <script>
+    const go = new Go();
+    WebAssembly.instantiateStreaming(fetch("game.wasm"), go.importObject)
+      .then((r) => go.run(r.instance))
+      .catch((e) => { document.body.style.color = "#fff"; document.body.textContent = "Failed to load game: " + e; console.error(e); });
+  </script>
+</body>
+</html>

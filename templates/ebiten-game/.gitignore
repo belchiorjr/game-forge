@@ -1,0 +1,5 @@
+web/game.wasm
+web/wasm_exec.js
+out/
+*.aar
+*.xcframework
