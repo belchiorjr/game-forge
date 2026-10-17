@@ -13,6 +13,7 @@ services:
       FORGE_REFUSAL_FALLBACK: ${FORGE_REFUSAL_FALLBACK:-true}
       FORGE_API_TOKEN: ${FORGE_API_TOKEN:-change-me}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      FORGE_SECRET_KEY: ${FORGE_SECRET_KEY:-} # empty: generated once in the data volume
     volumes:
       - forge-data:/data
       - forge-workspaces:/workspaces

@@ -20,6 +20,7 @@ import (
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/listfiles"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/listprojects"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/listruns"
+	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/llmsettings"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/readfile"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/startrun"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/streamevents"
@@ -38,6 +39,7 @@ type UseCases struct {
 	ListFiles     *listfiles.UseCase
 	ReadFile      *readfile.UseCase
 	WriteFile     *writefile.UseCase
+	LLMSettings   *llmsettings.UseCase
 }
 
 type Server struct {
@@ -65,6 +67,9 @@ func (s *Server) Handler() http.Handler {
 	api.HandleFunc("GET /projects/{id}/files", s.listFiles)
 	api.HandleFunc("GET /projects/{id}/files/content", s.readFile)
 	api.HandleFunc("PUT /projects/{id}/files/content", s.writeFile)
+	api.HandleFunc("GET /settings/llm", s.getLLMSettings)
+	api.HandleFunc("PUT /settings/llm", s.putLLMSettings)
+	api.HandleFunc("POST /settings/llm/test", s.testLLMSettings)
 
 	root := http.NewServeMux()
 	root.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {

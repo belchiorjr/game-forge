@@ -50,6 +50,9 @@ export function Workspace({ projectId }: { projectId: string }) {
           />
           {connection === "open" ? "ao vivo" : connection === "connecting" ? "conectando" : "reconectando"}
         </span>
+        <Link href="/settings" className="text-muted hover:text-foreground" aria-label="Configurações">
+          ⚙
+        </Link>
       </header>
 
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(320px,400px)_1fr]">

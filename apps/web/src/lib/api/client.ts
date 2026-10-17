@@ -5,6 +5,8 @@ export type Run = components["schemas"]["Run"];
 export type RunStatus = components["schemas"]["RunStatus"];
 export type FileInfo = components["schemas"]["FileInfo"];
 export type CreateProjectRequest = components["schemas"]["CreateProjectRequest"];
+export type LLMSettings = components["schemas"]["LLMSettings"];
+export type LLMSettingsInput = components["schemas"]["LLMSettingsInput"];
 
 export class ApiError extends Error {
   constructor(
@@ -35,6 +37,10 @@ const json = (method: string, body: unknown, headers: Record<string, string> = {
 });
 
 export const api = {
+  getLLMSettings: () => request<LLMSettings>("/settings/llm"),
+  saveLLMSettings: (body: LLMSettingsInput) => request<LLMSettings>("/settings/llm", json("PUT", body)),
+  testLLMSettings: (body: LLMSettingsInput) =>
+    request<{ ok: boolean; message: string }>("/settings/llm/test", json("POST", body)),
   listProjects: () => request<{ projects: Project[] }>("/projects").then((r) => r.projects),
   getProject: (id: string) => request<Project>(`/projects/${id}`),
   createProject: (body: CreateProjectRequest) => request<Project>("/projects", json("POST", body)),

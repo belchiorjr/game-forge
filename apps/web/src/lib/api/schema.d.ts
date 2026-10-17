@@ -432,6 +432,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/settings/llm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current LLM configuration (the API key is never returned, only masked) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LLMSettings"];
+                    };
+                };
+            };
+        };
+        /** Update the LLM configuration; omit api_key to keep the stored one, "" removes it */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LLMSettingsInput"];
+                };
+            };
+            responses: {
+                /** @description Saved */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LLMSettings"];
+                    };
+                };
+                422: components["responses"]["Error"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/settings/llm/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check a configuration against the provider without saving it */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LLMSettingsInput"];
+                };
+            };
+            responses: {
+                /** @description Result */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            ok: boolean;
+                            message: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -474,6 +578,26 @@ export interface components {
         };
         /** @enum {string} */
         EventType: "run.started" | "run.finished" | "agent.message" | "agent.plan" | "tool.started" | "tool.finished" | "file.changed" | "usage" | "error";
+        /** @enum {string} */
+        LLMProvider: "fake" | "anthropic";
+        LLMSettings: {
+            provider: components["schemas"]["LLMProvider"];
+            model: string;
+            refusal_fallback: boolean;
+            api_key_set: boolean;
+            api_key_masked: string;
+            /** @enum {string} */
+            api_key_source: "settings" | "env" | "";
+            /** Format: date-time */
+            updated_at: string | null;
+        };
+        LLMSettingsInput: {
+            provider: components["schemas"]["LLMProvider"];
+            model: string;
+            /** @description Write-only. Omit to keep the stored key; empty string removes it. */
+            api_key?: string;
+            refusal_fallback: boolean;
+        };
         Error: {
             error: {
                 code: string;

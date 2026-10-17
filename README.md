@@ -42,14 +42,19 @@ toolchain Go e git porque o agente compila e testa os jogos. O serviço de sprit
 
 ### Agente real (Claude)
 
-```bash
-export ANTHROPIC_API_KEY=...        # ou `ant auth login`
-FORGE_LLM=anthropic make api
-```
+Abra **⚙ Configurações** (`/settings`) na web, escolha "Claude (Anthropic)", cole a chave e clique em
+"Testar conexão" e "Salvar". Vale a partir do próximo run, sem reiniciar nada.
+
+A chave vai para a API Go, que guarda criptografada (AES-256-GCM) no SQLite e nunca a devolve ao
+navegador (só os 4 últimos caracteres). A chave de criptografia vem de `FORGE_SECRET_KEY` ou é gerada
+em `data/secret.key` na primeira execução. Alternativa: `ANTHROPIC_API_KEY` no ambiente da API.
+
+A web não tem login: mantenha-a acessível só na sua máquina.
 
 | Variável | Padrão | Uso |
 |---|---|---|
-| `FORGE_LLM` | `fake` | `fake` (roteirizado, sem custo) ou `anthropic` |
+| `FORGE_LLM` | `fake` | provedor padrão até algo ser salvo em Configurações |
+| `FORGE_SECRET_KEY` | gerada | criptografa a chave salva (trocar invalida a chave guardada) |
 | `FORGE_MODEL` | `claude-opus-5-5` | modelo do agente |
 | `FORGE_REFUSAL_FALLBACK` | `true` | fallback server-side quando o modelo recusa |
 | `FORGE_API_TOKEN` | vazio | bearer token da API (defina igual em `apps/web/.env.local`) |

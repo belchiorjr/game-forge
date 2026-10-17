@@ -1,10 +1,14 @@
+import Link from "next/link";
 import { NewGameForm } from "@/features/projects/NewGameForm";
 import { ProjectList } from "@/features/projects/ProjectList";
 
 export default function Home() {
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:py-16">
-      <header className="mb-8">
+      <header className="relative mb-8">
+        <Link href="/settings" className="absolute top-1 right-0 text-sm text-muted hover:text-foreground">
+          ⚙ Configurações
+        </Link>
         <h1 className="text-3xl font-semibold tracking-tight">
           Game <span className="text-accent">Forge</span>
         </h1>

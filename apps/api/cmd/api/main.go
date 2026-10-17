@@ -21,6 +21,7 @@ import (
 	httpadapter "github.com/belchiorjr/game-forge/apps/api/internal/adapter/http"
 	"github.com/belchiorjr/game-forge/apps/api/internal/adapter/llm"
 	"github.com/belchiorjr/game-forge/apps/api/internal/adapter/sqlite"
+	"github.com/belchiorjr/game-forge/apps/api/internal/domain"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/agent"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/cancelrun"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/createproject"
@@ -29,6 +30,7 @@ import (
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/listfiles"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/listprojects"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/listruns"
+	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/llmsettings"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/port"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/readfile"
 	"github.com/belchiorjr/game-forge/apps/api/internal/usecase/startrun"
@@ -71,6 +73,28 @@ func loadConfig() config {
 	}
 }
 
+// loadSecret returns the key that encrypts stored settings: FORGE_SECRET_KEY, or a random key
+// generated once and kept in the data directory.
+func loadSecret(cfg config) ([]byte, error) {
+	if v := os.Getenv("FORGE_SECRET_KEY"); v != "" {
+		return []byte(v), nil
+	}
+	path := filepath.Join(cfg.DataDir, "secret.key")
+	if b, err := os.ReadFile(path); err == nil && len(b) >= 32 {
+		return b, nil
+	}
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return nil, err
+	}
+	key := []byte(hex.EncodeToString(b))
+	if err := os.WriteFile(path, key, 0o600); err != nil {
+		return nil, err
+	}
+	slog.Info("generated settings encryption key", "path", path)
+	return key, nil
+}
+
 func newID() string {
 	b := make([]byte, 12)
 	_, _ = rand.Read(b)
@@ -99,14 +123,19 @@ func main() {
 	ws := must(fsworkspace.New(cfg.WorkspacesDir, cfg.TemplatesDir))
 	bus := eventbus.New(sqlite.NewEventRepo(db), time.Now)
 
-	var model port.LLM
-	switch cfg.LLM {
-	case "anthropic":
-		model = llm.NewAnthropic(cfg.Model, cfg.Fallback)
-	default:
-		model = llm.NewFake(cfg.FakeDelay)
-	}
-	slog.Info("llm configured", "provider", cfg.LLM, "model", cfg.Model)
+	secret := must(loadSecret(cfg))
+	settingsRepo := must(sqlite.NewSettingsRepo(db, secret))
+
+	// The router reads the settings on every call, so keys saved in the web app apply to the next run.
+	var settings *llmsettings.UseCase
+	router := llm.NewRouter(func(ctx context.Context) (domain.LLMSettings, error) { return settings.Effective(ctx) }, llm.NewFake(cfg.FakeDelay))
+	settings = llmsettings.New(settingsRepo, router, llmsettings.Defaults{
+		Provider:        domain.LLMProvider(cfg.LLM),
+		Model:           cfg.Model,
+		RefusalFallback: cfg.Fallback,
+		EnvAPIKey:       os.Getenv("ANTHROPIC_API_KEY"),
+	}, time.Now)
+	var model port.LLM = router
 
 	if n, err := runs.FailOrphans(context.Background()); err == nil && n > 0 {
 		slog.Warn("marked runs left over from a previous process as failed", "count", n)
@@ -130,6 +159,7 @@ func main() {
 		ListFiles:     listfiles.New(projects, ws),
 		ReadFile:      readfile.New(projects, ws),
 		WriteFile:     writefile.New(projects, runs, ws, bus),
+		LLMSettings:   settings,
 	}
 	// Cancelled on shutdown so long-lived SSE requests end instead of holding Shutdown open.
 	baseCtx, cancelBase := context.WithCancel(context.Background())

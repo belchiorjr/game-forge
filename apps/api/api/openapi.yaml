@@ -139,6 +139,38 @@ paths:
             application/json:
               schema: { type: object, required: [commit], properties: { commit: { type: string } } }
         "409": { $ref: "#/components/responses/Error" }
+  /settings/llm:
+    get:
+      summary: Current LLM configuration (the API key is never returned, only masked)
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/LLMSettings" } } } }
+    put:
+      summary: Update the LLM configuration; omit api_key to keep the stored one, "" removes it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LLMSettingsInput" }
+      responses:
+        "200": { description: Saved, content: { application/json: { schema: { $ref: "#/components/schemas/LLMSettings" } } } }
+        "422": { $ref: "#/components/responses/Error" }
+  /settings/llm/test:
+    post:
+      summary: Check a configuration against the provider without saving it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LLMSettingsInput" }
+      responses:
+        "200":
+          description: Result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, message]
+                properties: { ok: { type: boolean }, message: { type: string } }
 components:
   securitySchemes:
     bearer: { type: http, scheme: bearer }
@@ -195,6 +227,28 @@ components:
     EventType:
       type: string
       enum: [run.started, run.finished, agent.message, agent.plan, tool.started, tool.finished, file.changed, usage, error]
+    LLMProvider:
+      type: string
+      enum: [fake, anthropic]
+    LLMSettings:
+      type: object
+      required: [provider, model, refusal_fallback, api_key_set, api_key_masked, api_key_source, updated_at]
+      properties:
+        provider: { $ref: "#/components/schemas/LLMProvider" }
+        model: { type: string }
+        refusal_fallback: { type: boolean }
+        api_key_set: { type: boolean }
+        api_key_masked: { type: string }
+        api_key_source: { type: string, enum: ["settings", "env", ""] }
+        updated_at: { type: string, format: date-time, nullable: true }
+    LLMSettingsInput:
+      type: object
+      required: [provider, model, refusal_fallback]
+      properties:
+        provider: { $ref: "#/components/schemas/LLMProvider" }
+        model: { type: string }
+        api_key: { type: string, description: "Write-only. Omit to keep the stored key; empty string removes it." }
+        refusal_fallback: { type: boolean }
     Error:
       type: object
       required: [error]

@@ -58,3 +58,12 @@ func decodeJSON(r *http.Request, v any) error {
 	}
 	return nil
 }
+
+// errMessage is the user-facing text of an error, without the domain sentinel prefix.
+func errMessage(err error) string {
+	msg := err.Error()
+	for _, sentinel := range []error{domain.ErrInvalid, domain.ErrNotFound, domain.ErrConflict, domain.ErrLimitExceeded} {
+		msg = strings.TrimPrefix(msg, sentinel.Error()+": ")
+	}
+	return msg
+}

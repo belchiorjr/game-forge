@@ -1,6 +1,10 @@
 package port
 
-import "context"
+import (
+	"context"
+
+	"github.com/belchiorjr/game-forge/apps/api/internal/domain"
+)
 
 type Message struct {
 	Role      string // "user" | "assistant" | "tool"
@@ -37,4 +41,16 @@ type LLMResponse struct {
 // LLM is provider-neutral. Adapters translate to a specific provider's API.
 type LLM interface {
 	Complete(ctx context.Context, system string, msgs []Message, tools []ToolDef) (LLMResponse, error)
+}
+
+// SettingsRepository stores the LLM configuration (API key encrypted at rest).
+type SettingsRepository interface {
+	// GetLLM returns nil, nil when nothing was saved yet.
+	GetLLM(ctx context.Context) (*domain.LLMSettings, error)
+	SaveLLM(ctx context.Context, s *domain.LLMSettings) error
+}
+
+// LLMTester checks that a configuration can reach the provider without running an agent.
+type LLMTester interface {
+	Test(ctx context.Context, s domain.LLMSettings) error
 }
