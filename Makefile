@@ -5,7 +5,7 @@ WEB      := apps/web
 TEMPLATE := templates/ebiten-game
 BIN      := bin
 
-.PHONY: help install dev api api-anthropic web build build-api build-web start \
+.PHONY: help up down down-v install dev api api-anthropic web build build-api build-web start \
         test test-api test-web template-test e2e arch lint fmt types \
         template-run template-wasm template-serve clean reset-data \
         test-all docker-build docker-up docker-down docker-logs docker-ps docker-restart docker-clean
@@ -17,6 +17,20 @@ help: ## Lista todos os comandos
 		/^[a-zA-Z0-9_-]+:.*##/ { printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2 } \
 		/^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
 	@echo
+
+##@ Stack (Docker)
+
+up: ## Sobe tudo (api + web) em background e espera ficar saudável
+	@test -f .env || cp .env.example .env
+	docker compose up -d --build --wait
+	@echo "\nGame Forge no ar: http://$$(docker compose port web 3300)  (API: $$(docker compose port api 8787))"
+
+down: ## Derruba tudo (mantém banco e projetos nos volumes)
+	docker compose down --remove-orphans
+
+down-v: ## Derruba e limpa tudo: containers, volumes (banco + projetos), imagens e artefatos de build
+	docker compose down -v --rmi local --remove-orphans
+	$(MAKE) clean
 
 ##@ Setup
 

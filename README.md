@@ -30,9 +30,10 @@ Todos os comandos: `make help`.
 ### Docker
 
 ```bash
-make docker-up    # cria .env a partir de .env.example e sobe api + web
+make up           # sobe tudo (cria .env se faltar) e espera ficar saudável
+make down         # derruba tudo, mantém banco e projetos
+make down-v       # derruba e limpa tudo: volumes, imagens e artefatos de build
 make docker-logs
-make docker-down
 ```
 
 Portas do host via `FORGE_WEB_PORT` / `FORGE_API_PORT` no `.env` (padrão 3300/8787, só em 127.0.0.1).
